@@ -1,11 +1,13 @@
 // Tiny static server for dist/ (ES modules can't load from file://).
+// `--root docs` serves the GitHub Pages site instead (the upload-your-own-JAR player).
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
 
-const root = join(fileURLToPath(new URL('.', import.meta.url)), 'dist');
+const rootArg = process.argv.indexOf('--root');
+const root = join(fileURLToPath(new URL('.', import.meta.url)), rootArg > 0 ? process.argv[rootArg + 1] : 'dist');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 const port = Number(process.env.PORT) || 8240;
 // Local-only by default. `node serve.mjs --lan` also listens on your Wi-Fi so a phone on the

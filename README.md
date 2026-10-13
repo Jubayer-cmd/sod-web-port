@@ -3,7 +3,9 @@
 An unofficial, **bring-your-own-game** browser runtime for *Soul of Darkness*, the 2008
 Gameloft action platformer for J2ME phones.
 
-**Project site:** https://jubayer-cmd.github.io/sod-web-port/ (information only, no game)
+**Play:** https://jubayer-cmd.github.io/sod-web-port/play/ — choose your own copy of the game
+file and it runs right in the page. The file is read locally and never uploaded.
+**Project site:** https://jubayer-cmd.github.io/sod-web-port/
 
 It runs the game's **original, unmodified code** in any modern browser — desktop or phone —
 with no emulator and no Java at runtime. You supply your own copy of the game; this
@@ -15,8 +17,9 @@ repository contains only the code written to make it run on the web.
 > with, endorsed by or sponsored by Gameloft. "Soul of Darkness" and "Gameloft" are used
 > only to identify the game this runtime is compatible with.
 >
-> To use it you need your own legally obtained copy of the game file. The compiled output
-> (`dist/`) contains that game, so **do not publish, host or share a build.** See
+> To use it you need your own legally obtained copy of the game file. The hosted player
+> contains only the runtime; your file stays in your browser. A local TeaVM build
+> (`dist/`) does contain the game, so **do not publish, host or share a build.** See
 > [Legal](#legal).
 
 ## What it is
@@ -35,7 +38,28 @@ those, so this project:
 
 Nothing in the game is patched; every fix lives in the platform layer.
 
-## Requirements
+## Play in the browser (no install)
+
+Open the [player](https://jubayer-cmd.github.io/sod-web-port/play/), choose (or drop) your
+`SoulOfDarkness_HTC_P3450_EN_IGPL_EU_101_S8000.jar`, and play. The page:
+
+1. unzips the JAR in memory and checks its SHA-256 (other builds get a warning);
+2. **compiles the game's bytecode to JavaScript in the browser** (`static/jvm/`): a
+   class-file parser, a bytecode→JS compiler and JavaScript versions of the CLDC/MIDP
+   classes the game uses;
+3. starts the MIDlet with the same display, keyboard and touch front end as the local build.
+
+Nothing is sent anywhere. "Remember it on this device" keeps the file in that browser's
+IndexedDB so it needn't be chosen again; "Forget" deletes it.
+
+To try the player locally: `node tools/build-pages.mjs && node serve.mjs --root docs`, then
+open http://localhost:8240/play/.
+
+## Build it yourself (TeaVM, ahead of time)
+
+The original route: compile the game ahead of time with TeaVM for a fully offline copy.
+
+### Requirements
 
 | Tool | Version | Notes |
 |---|---|---|
@@ -48,7 +72,7 @@ The build checks the file's SHA-256
 (`3da9ea7f…e4bea4`, full value in [`game/README.md`](game/README.md)) and refuses anything
 else. Other builds of the game differ internally and are not supported.
 
-## Build and run
+### Build and run
 
 ```sh
 cp /path/to/your/SoulOfDarkness_HTC_P3450_EN_IGPL_EU_101_S8000.jar game/SoulOfDarkness.jar
@@ -101,6 +125,22 @@ From the settings bar (⚙ on phones), remembered per browser:
 
 ## How it works
 
+### In-browser player (`static/jvm/`, published to `docs/play/`)
+
+| Piece | File | Notes |
+|---|---|---|
+| JAR reader | `jar.js`, `inflate.js` | zip + DEFLATE; SHA-256 via Web Crypto |
+| Class files | `classfile.js` | constant pool, fields, methods, exception tables |
+| Compiler | `compiler.js` | one JS function per method: basic blocks in a `switch`, operand stack in locals, exact `int` wrap-around, `BigInt` longs, bounds and divide-by-zero checks, Java exception handlers |
+| Linker | `runtime.js` | builds JS classes for the game's classes on top of the library ones; lazy static initialisers; thread scheduler (thread bodies that `sleep` become generators) |
+| Java library | `cldc.js` | `String`, `StringBuffer`, `Vector`, `Hashtable`, `Random` (exact LCG), streams, exceptions |
+| Phone APIs | `midp.js`, `png.js` | port of the Java MIDP layer below: renderer, fonts, input, audio, RecordStore |
+| Page | `static/play.html` | file picker, optional IndexedDB copy, same controls and display settings |
+
+`tools/build-pages.mjs` copies these files (plus the shared front end) into `docs/play/`.
+
+### Ahead-of-time build (TeaVM)
+
 ```
  your game.jar ──unzip──▶ original .class files + data ─┐
                                                         ├─ TeaVM AOT ─▶ dist/sod.js
@@ -126,7 +166,10 @@ From the settings bar (⚙ on phones), remembered per browser:
 
 ## Status
 
-Verified in Chrome on macOS: boot, menus, story, level 1 gameplay, keyboard, mouse/touch,
+In-browser player: verified in Chrome on macOS through boot, menus, story, level 1
+gameplay and the upgrade screen at the game's full 20 fps.
+
+TeaVM build: verified in Chrome on macOS: boot, menus, story, level 1 gameplay, keyboard, mouse/touch,
 saving, sound, tab switching, all display modes, and the phone layouts (landscape and
 portrait, in emulated viewports). Typical frame cost is 2–7 ms of a 50 ms budget.
 
@@ -153,6 +196,8 @@ extracted assets, decompiled code, screenshots of the game or a built `dist/`. T
   None of it is included here, and nothing in this repository grants any right to it.
 - This project is an independent, non-commercial interoperability effort for people who
   already own the game. It does not circumvent any copy protection.
+- The hosted player (`docs/play/`) contains only this project's runtime. The game file a
+  visitor chooses is processed in their own browser and never uploaded.
 - Do not host, publish or redistribute builds (`dist/`), because they contain the game.
 - If you are a rights holder with a concern, please open an issue and it will be
   addressed promptly.

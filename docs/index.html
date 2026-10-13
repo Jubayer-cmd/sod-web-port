@@ -88,11 +88,11 @@
     <h1>Soul of Darkness <span>on the web</span></h1>
     <p class="lede">A browser runtime that plays Gameloft's 2008 J2ME action platformer from <em>your own copy</em> of the game. It runs the original code on desktop and phone, with no emulator and no Java at runtime.</p>
     <div class="cta">
-      <a class="btn" href="https://github.com/Jubayer-cmd/sod-web-port">View on GitHub</a>
-      <a class="btn ghost" href="#quick-start">Quick start</a>
+      <a class="btn" href="play/">Play with your own .jar</a>
+      <a class="btn ghost" href="https://github.com/Jubayer-cmd/sod-web-port">View on GitHub</a>
     </div>
     <div class="notice">
-      <strong>No game included.</strong> This project contains no Gameloft code, graphics, music, text or game files, and this site does not host the game. <em>Soul of Darkness</em> is © 2008 Gameloft SA. This project is not affiliated with or endorsed by Gameloft. You need your own copy of the game to play.
+      <strong>No game included.</strong> This project contains no Gameloft code, graphics, music, text or game files, and this site does not host the game. <em>Soul of Darkness</em> is © 2008 Gameloft SA. This project is not affiliated with or endorsed by Gameloft. You need your own copy of the game to play. The <a href="play/">player</a> reads the file you choose directly in your browser: it is never uploaded anywhere.
     </div>
   </div>
 </header>
@@ -102,14 +102,20 @@
     <h2>What it is</h2>
     <p>The original game is a J2ME <em>MIDlet</em>: Java bytecode written for the MIDP 2.0 phone APIs. Browsers don't have those APIs, so this project:</p>
     <div class="grid">
-      <div class="card"><h3>Compiles, not emulates</h3><p>The game's unmodified bytecode is compiled ahead of time to JavaScript with TeaVM. Java's exact integer maths, bounds checks and exceptions are preserved.</p></div>
+      <div class="card"><h3>Compiles, not emulates</h3><p>The game's unmodified bytecode is translated to JavaScript, either in your browser when you open your file, or ahead of time with TeaVM. Java's exact integer maths, bounds checks and exceptions are preserved.</p></div>
       <div class="card"><h3>Reimplements the phone</h3><p>The ~50 MIDP methods the game uses are rebuilt on web APIs: a pixel-exact software renderer, PNG decoding, saves, audio and input.</p></div>
       <div class="card"><h3>Plays like a web game</h3><p>Keyboard controls, a touch joystick and buttons for phones, whole-pixel scaling, and optional smoothing plus LCD/CRT screen effects.</p></div>
     </div>
   </section>
 
+  <section id="play">
+    <h2>Play in the browser</h2>
+    <p>Open <a href="play/">the player</a> and choose your copy of <code>SoulOfDarkness_HTC_P3450_EN_IGPL_EU_101_S8000.jar</code> (v1.0.1, 240×320 touch build). The page unzips it and compiles the game's bytecode to JavaScript right there, then starts it. Nothing is sent to a server; the site only hosts the runtime. You can optionally keep the file in your browser's storage so you don't have to choose it again.</p>
+    <p class="muted">Other builds show a warning and may not work. Saves stay in that browser.</p>
+  </section>
+
   <section id="quick-start">
-    <h2>Quick start</h2>
+    <h2>Build it yourself</h2>
     <p class="muted">You need JDK 11+, Maven 3.9+, Node.js 18+, and your own copy of <code>SoulOfDarkness_HTC_P3450_EN_IGPL_EU_101_S8000.jar</code> (v1.0.1, 240×320 touch build). The build checks the file's SHA-256 and rejects other versions.</p>
 <pre>git clone https://github.com/Jubayer-cmd/sod-web-port.git
 cd sod-web-port
@@ -145,7 +151,12 @@ node serve.mjs            # open http://localhost:8240/</pre>
 
   <section>
     <h2>How it works</h2>
-<pre class="flow">your game.jar ─▶ original classes + data ─┐
+<pre class="flow">In the browser (play/):
+your game.jar ─▶ unzip ─▶ class files ─▶ jvm/compiler.js ─▶ JavaScript functions
+                                         jvm/cldc.js + jvm/midp.js (Java & phone APIs)
+
+Ahead of time (local build):
+your game.jar ─▶ original classes + data ─┐
                                          ├─ TeaVM ─▶ dist/sod.js (plain JavaScript)
 MIDP 2.0 layer (this repo) ──────────────┘               │
                                                          ▼
@@ -162,7 +173,7 @@ controls.js  drag joystick + buttons      midi.js  MIDI synth</pre>
 
   <section>
     <h2>Status</h2>
-    <p>Tested in Chrome on macOS: boot, menus, story, level 1 gameplay, keyboard, mouse and touch, saves, sound, tab switching, all display modes, and the phone layouts in emulated screen sizes. Typical frame cost is 2–7 ms of the game's 50 ms frame budget.</p>
+    <p>The in-browser player is tested in Chrome on macOS through boot, menus, story, level 1 gameplay and the upgrade screen, at the game's full 20 frames per second. The local TeaVM build is tested in Chrome on macOS: boot, menus, story, level 1 gameplay, keyboard, mouse and touch, saves, sound, tab switching, all display modes, and the phone layouts in emulated screen sizes. Typical frame cost is 2–7 ms of the game's 50 ms frame budget.</p>
     <p class="muted">Not yet tested on physical phones. The music is a simple synth. The game's own tutorial screens still show phone controls. Only build v1.0.1 is supported.</p>
   </section>
 
