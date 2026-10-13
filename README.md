@@ -3,6 +3,8 @@
 An unofficial, **bring-your-own-game** browser runtime for *Soul of Darkness*, the 2008
 Gameloft action platformer for J2ME phones.
 
+**Project site:** https://jubayer-cmd.github.io/sod-web-port/ (information only, no game)
+
 It runs the game's **original, unmodified code** in any modern browser — desktop or phone —
 with no emulator and no Java at runtime. You supply your own copy of the game; this
 repository contains only the code written to make it run on the web.

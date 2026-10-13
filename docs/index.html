@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sod-web-port</title>
+<meta name="description" content="Unofficial bring-your-own-game browser runtime for the 2008 J2ME game Soul of Darkness. Runs the original code in any browser, desktop or phone. No game files included.">
+<style>
+  :root {
+    --bg: #0b0a0e;
+    --panel: #15121a;
+    --panel-2: #1c1823;
+    --text: #e2dbcd;
+    --muted: #958d80;
+    --accent: #c0333b;
+    --gold: #c8902e;
+    --violet: #3b1d63;
+    --violet-hi: #7a45c4;
+    --line: #2a2430;
+    --code-bg: #120f16;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f3ee; --panel: #ffffff; --panel-2: #f0ebf5; --text: #1d1a22; --muted: #625b6a;
+      --accent: #a3242c; --gold: #8a5d12; --violet: #e7defa; --violet-hi: #5b2ea3;
+      --line: #ddd5e3; --code-bg: #f1edf6;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--violet-hi); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+
+  header.hero { padding: 72px 0 40px; border-bottom: 1px solid var(--line);
+    background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--violet) 55%, transparent), transparent 70%); }
+  .eyebrow { font: 600 12px/1 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--gold); margin: 0 0 16px; }
+  h1 { font: 600 clamp(32px, 7vw, 52px)/1.05 Georgia, "Times New Roman", serif; margin: 0 0 16px;
+    letter-spacing: .01em; }
+  h1 span { color: var(--accent); }
+  .lede { font-size: 19px; color: var(--muted); max-width: 640px; margin: 0 0 28px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; text-decoration: none;
+    font-weight: 600; font-size: 15px; border: 1px solid var(--gold); color: var(--text);
+    background: var(--violet); border-radius: 6px; }
+  .btn.ghost { background: transparent; border-color: var(--line); }
+
+  .notice { margin: 32px 0 0; padding: 16px 18px; border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); background: var(--panel); border-radius: 6px; font-size: 15px; }
+  .notice strong { color: var(--accent); }
+
+  section { padding: 44px 0 8px; }
+  h2 { font: 600 26px/1.2 Georgia, serif; margin: 0 0 16px; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
+    overflow-x: auto; font: 14px/1.55 ui-monospace, "SF Mono", Menlo, monospace; margin: 0 0 14px; }
+  code { font: 0.92em ui-monospace, "SF Mono", Menlo, monospace; }
+  :not(pre) > code { background: var(--code-bg); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 520px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  kbd { font: 12px ui-monospace, monospace; background: var(--panel-2); border: 1px solid var(--line);
+    border-bottom-width: 2px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+
+  .flow { font: 13px/1.6 ui-monospace, monospace; white-space: pre; }
+  ol.steps { padding-left: 20px; margin: 0 0 14px; }
+  ol.steps li { margin-bottom: 6px; }
+
+  footer { margin-top: 56px; padding: 28px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Unofficial · Bring your own game</p>
+    <h1>Soul of Darkness <span>on the web</span></h1>
+    <p class="lede">A browser runtime that plays Gameloft's 2008 J2ME action platformer from <em>your own copy</em> of the game. It runs the original code on desktop and phone, with no emulator and no Java at runtime.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/Jubayer-cmd/sod-web-port">View on GitHub</a>
+      <a class="btn ghost" href="#quick-start">Quick start</a>
+    </div>
+    <div class="notice">
+      <strong>No game included.</strong> This project contains no Gameloft code, graphics, music, text or game files, and this site does not host the game. <em>Soul of Darkness</em> is © 2008 Gameloft SA. This project is not affiliated with or endorsed by Gameloft. You need your own copy of the game to play.
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>What it is</h2>
+    <p>The original game is a J2ME <em>MIDlet</em>: Java bytecode written for the MIDP 2.0 phone APIs. Browsers don't have those APIs, so this project:</p>
+    <div class="grid">
+      <div class="card"><h3>Compiles, not emulates</h3><p>The game's unmodified bytecode is compiled ahead of time to JavaScript with TeaVM. Java's exact integer maths, bounds checks and exceptions are preserved.</p></div>
+      <div class="card"><h3>Reimplements the phone</h3><p>The ~50 MIDP methods the game uses are rebuilt on web APIs: a pixel-exact software renderer, PNG decoding, saves, audio and input.</p></div>
+      <div class="card"><h3>Plays like a web game</h3><p>Keyboard controls, a touch joystick and buttons for phones, whole-pixel scaling, and optional smoothing plus LCD/CRT screen effects.</p></div>
+    </div>
+  </section>
+
+  <section id="quick-start">
+    <h2>Quick start</h2>
+    <p class="muted">You need JDK 11+, Maven 3.9+, Node.js 18+, and your own copy of <code>SoulOfDarkness_HTC_P3450_EN_IGPL_EU_101_S8000.jar</code> (v1.0.1, 240×320 touch build). The build checks the file's SHA-256 and rejects other versions.</p>
+<pre>git clone https://github.com/Jubayer-cmd/sod-web-port.git
+cd sod-web-port
+cp /path/to/your/SoulOfDarkness.jar game/SoulOfDarkness.jar
+mvn -q package
+node serve.mjs            # open http://localhost:8240/</pre>
+    <h3>On your phone</h3>
+<pre>node serve.mjs --lan      # prints http://&lt;your-LAN-IP&gt;:8240/</pre>
+    <p class="muted">Open the printed address on a phone connected to the same Wi-Fi. On iPhone, use <em>Share → Add to Home Screen</em> to play full screen.</p>
+    <p class="muted">Your build contains the game, so keep it to yourself: don't host, upload or share <code>dist/</code>.</p>
+  </section>
+
+  <section>
+    <h2>Controls</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Action</th><th>Keyboard</th><th>Touch</th></tr></thead>
+        <tbody>
+          <tr><td>Move</td><td><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></td><td>drag the joystick sideways</td></tr>
+          <tr><td>Jump</td><td><kbd>W</kbd> / <kbd>Space</kbd> / <kbd>↑</kbd></td><td>joystick up, or Jump</td></tr>
+          <tr><td>Diagonal jump</td><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>joystick up-left / up-right</td></tr>
+          <tr><td>Crouch</td><td><kbd>S</kbd> / <kbd>↓</kbd></td><td>joystick down</td></tr>
+          <tr><td>Attack</td><td><kbd>J</kbd> (or <kbd>Z</kbd>)</td><td>Attack</td></tr>
+          <tr><td>Magic</td><td><kbd>K</kbd> (or <kbd>X</kbd>)</td><td>Magic</td></tr>
+          <tr><td>Switch weapon</td><td><kbd>L</kbd> (or <kbd>C</kbd>)</td><td>Switch</td></tr>
+          <tr><td>OK / Next (hold to fill the bar on the upgrade screen)</td><td><kbd>Enter</kbd></td><td>OK</td></tr>
+          <tr><td>Pause</td><td><kbd>P</kbd></td><td>OK during play</td></tr>
+          <tr><td>Back / weapon upgrade</td><td><kbd>Esc</kbd> / <kbd>U</kbd></td><td>Back</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+<pre class="flow">your game.jar ─▶ original classes + data ─┐
+                                         ├─ TeaVM ─▶ dist/sod.js (plain JavaScript)
+MIDP 2.0 layer (this repo) ──────────────┘               │
+                                                         ▼
+host.js      canvas · input · text · WebAudio · localStorage
+display.js   WebGL2: Scale2x → sharp-bilinear → LCD / CRT
+controls.js  drag joystick + buttons      midi.js  MIDI synth</pre>
+    <div class="grid">
+      <div class="card"><h3>Pixel-exact graphics</h3><p>A software renderer handles MIDP clipping, all 8 sprite transforms and alpha, then the GPU scales the result.</p></div>
+      <div class="card"><h3>Same input timing as a phone</h3><p>Input is delivered on the game thread before each frame, and every press lasts at least one frame, because the game checks the keys once per frame.</p></div>
+      <div class="card"><h3>Context-aware OK</h3><p>Enter is the phone's OK soft key, except on the upgrade screen, which only fills its bar while Fire is held.</p></div>
+      <div class="card"><h3>Pause and resume</h3><p>Hiding and showing the page arrive on a separate thread, so the game pauses when you switch tabs and picks up again when you come back.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Status</h2>
+    <p>Tested in Chrome on macOS: boot, menus, story, level 1 gameplay, keyboard, mouse and touch, saves, sound, tab switching, all display modes, and the phone layouts in emulated screen sizes. Typical frame cost is 2–7 ms of the game's 50 ms frame budget.</p>
+    <p class="muted">Not yet tested on physical phones. The music is a simple synth. The game's own tutorial screens still show phone controls. Only build v1.0.1 is supported.</p>
+  </section>
+
+  <section>
+    <h2>Legal</h2>
+    <p>This project's own source code is released under the MIT License. That license covers only the code in this repository. <em>Soul of Darkness</em>, its code, graphics, music, text and trademarks belong to Gameloft SA. None of it is included here, and nothing here grants any right to it. This is an independent, non-commercial compatibility project for people who already own the game, and it does not bypass any copy protection. Rights holders with a concern can open an issue on the repository.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    sod-web-port · MIT-licensed runtime · <a href="https://github.com/Jubayer-cmd/sod-web-port">github.com/Jubayer-cmd/sod-web-port</a><br>
+    Not affiliated with Gameloft. No game files are distributed by this project or this site.
+  </div>
+</footer>
+</body>
+</html>
