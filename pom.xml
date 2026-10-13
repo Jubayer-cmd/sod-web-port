@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>local.sod</groupId>
+  <artifactId>sod-web</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <teavm.version>0.16.0</teavm.version>
+    <maven.compiler.release>11</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Your own copy of the game (not distributed). Override with -Dgame.jar=/path/to.jar -->
+    <game.jar>${project.basedir}/game/SoulOfDarkness.jar</game.jar>
+    <game.sha256>3da9ea7fe8dfaa2c090e8b3714eaed15127f51dc8b67ed9ef9fed51172e4bea4</game.sha256>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-classlib</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-core</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso-apis</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Unpack the original game classes + resources next to our MIDP layer. -->
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>unpack-game</id>
+            <phase>generate-sources</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <fail message="Game JAR not found: ${game.jar}${line.separator}This repository does not include the game. Copy your own copy to game/SoulOfDarkness.jar (see game/README.md).">
+                  <condition><not><available file="${game.jar}"/></not></condition>
+                </fail>
+                <checksum file="${game.jar}" algorithm="SHA-256" property="${game.sha256}" verifyProperty="game.ok"/>
+                <fail message="Unsupported game build: ${game.jar} does not match SHA-256 ${game.sha256}. This port targets the v1.0.1 240x320 HTC touch release only.">
+                  <condition><isfalse value="${game.ok}"/></condition>
+                </fail>
+                <unzip src="${game.jar}" dest="${project.build.outputDirectory}">
+                  <patternset><exclude name="META-INF/**"/></patternset>
+                </unzip>
+                <copy todir="${project.basedir}/dist">
+                  <fileset dir="${project.basedir}/static"/>
+                </copy>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-maven-plugin</artifactId>
+        <version>${teavm.version}</version>
+        <executions>
+          <execution>
+            <id>web</id>
+            <phase>process-classes</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <mainClass>Launcher</mainClass>
+              <targetDirectory>${project.basedir}/dist</targetDirectory>
+              <targetFileName>sod.js</targetFileName>
+              <targetType>JAVASCRIPT</targetType>
+              <jsModuleType>ES2015</jsModuleType>
+              <minifying>true</minifying>
+              <strict>true</strict>
+              <optimizationLevel>ADVANCED</optimizationLevel>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
