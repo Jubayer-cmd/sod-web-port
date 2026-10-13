@@ -671,10 +671,13 @@ export const motion = {
     } else {
       const t = Math.min(1, (now - this.tickAt) / this.interval);
       const k = 1 - t;
+      let li = 0;
+      const left = p.leftovers; // sorted by draw position
       for (let i = 0; i < cmds.length; i++) {
-        if (i === p.leftoverAt) {
-          // Tiles that scrolled off in the newest frame, so the screen edge isn't left bare.
-          for (const j of p.leftovers) screenGraphics._replay(this.prev[j], Math.round(t * p.cdx), Math.round(t * p.cdy));
+        // Tiles that scrolled off in the newest frame, so the screen edge isn't left bare.
+        for (; li < left.length && left[li].at === i; li++) {
+          const o = left[li];
+          screenGraphics._replay(this.prev[o.j], Math.round(t * o.mx), Math.round(t * o.my));
         }
         screenGraphics._replay(cmds[i], Math.round(-k * p.dx[i]), Math.round(-k * p.dy[i]));
       }
