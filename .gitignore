@@ -1,0 +1,19 @@
+# Build output. dist/sod.js contains the compiled game and its data: never commit or publish it.
+/dist/
+/target/
+
+# The original game is NOT part of this repository. Supply your own copy locally.
+/game/*
+!/game/README.md
+
+# Never commit game binaries or extracted game data, wherever they end up.
+*.jar
+*.jad
+*.class
+*.mid
+*.midi
+
+.DS_Store
+node_modules/
+.idea/
+.vscode/
