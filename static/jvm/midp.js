@@ -1,6 +1,7 @@
 // MIDP 2.0 subset (lcdui, media, rms, midlet) in JavaScript, ported from the Java platform
 // layer in src/main/java. Talks to the page through SODHost (host.js).
-import { $, C, JObject, define, iface } from './runtime.js';
+import { $, C, JObject, define, iface, runDue, useExternalClock } from './runtime.js';
+import { planMotion } from './smooth.js';
 import { decodePng } from './png.js';
 import './cldc.js';
 
@@ -56,6 +57,7 @@ const DEFAULT_FONT = Font._make(0, 0, 0);
 
 // ------------------------------------------------------------------ Image
 
+let imageSeq = 0;
 class Image extends JObject {
   constructor() {
     super();
@@ -63,6 +65,7 @@ class Image extends JObject {
     this._h = 0;
     this._px = null;
     this._mutable = false;
+    this._id = ++imageSeq;
   }
   static _of(w, h, px, mutable) {
     const i = new Image();
@@ -128,7 +131,53 @@ class Graphics extends JObject {
     this._buf = buf;
     this._bw = bw;
     this._bh = bh;
+    this._rec = null; // draw-call list while recording a frame for smooth motion
+    this._group = null; // sprite being drawn (set by trackSprites hooks)
     this._reset();
+  }
+
+  // Records a draw call with the full state it needs, so the frame can be redrawn later
+  // with objects moved to in-between positions.
+  _record(op, args) {
+    const a = Array.prototype.slice.call(args);
+    let key = null;
+    let x = 0;
+    let y = 0;
+    if (op === DRAW_REGION) {
+      key = `${a[0]._id}:${a[1]}:${a[2]}:${a[3]}:${a[4]}:${a[5]}`;
+      x = a[6];
+      y = a[7];
+    } else if (op === DRAW_IMAGE) {
+      key = `${a[0]._id}:img`;
+      x = a[1];
+      y = a[2];
+    } else if (op === DRAW_RGB) {
+      // The game may reuse the pixel array for the next call; keep this call's pixels.
+      const end = a[1] + a[2] * Math.max(0, a[6] - 1) + a[5];
+      if (a[2] >= 0 && end <= a[0].length) {
+        a[0] = a[0].slice(a[1], end);
+        a[1] = 0;
+      }
+    }
+    this._rec.push({
+      op, a, key, x: x + this._tx, y: y + this._ty, g: this._group,
+      color: this._color, tx: this._tx, ty: this._ty,
+      c0: this._cx0, c1: this._cy0, c2: this._cx1, c3: this._cy1,
+      font: this._font, stroke: this._stroke,
+    });
+  }
+
+  _replay(c, dx, dy) {
+    this._color = c.color;
+    this._tx = c.tx + dx;
+    this._ty = c.ty + dy;
+    this._cx0 = c.c0;
+    this._cy0 = c.c1;
+    this._cx1 = c.c2;
+    this._cy1 = c.c3;
+    this._font = c.font;
+    this._stroke = c.stroke;
+    this[c.op](...c.a);
   }
   _reset() {
     this._color = 0xff000000 | 0;
@@ -181,6 +230,7 @@ class Graphics extends JObject {
     if (x0 < x1) this._buf.fill(this._color, y * this._bw + x0, y * this._bw + x1);
   }
   ['fillRect(IIII)V'](x, y, w, h) {
+    if (this._rec) return this._record('fillRect(IIII)V', arguments);
     if (w <= 0 || h <= 0) return;
     x += this._tx;
     y += this._ty;
@@ -198,6 +248,7 @@ class Graphics extends JObject {
   ['fillRoundRect(IIIIII)V'](x, y, w, h) { this['fillRect(IIII)V'](x, y, w, h); }
   ['drawRoundRect(IIIIII)V'](x, y, w, h) { this['drawRect(IIII)V'](x, y, w, h); }
   ['drawLine(IIII)V'](x0, y0, x1, y1) {
+    if (this._rec) return this._record('drawLine(IIII)V', arguments);
     x0 += this._tx; y0 += this._ty; x1 += this._tx; y1 += this._ty;
     const dx = Math.abs(x1 - x0);
     const dy = -Math.abs(y1 - y0);
@@ -213,6 +264,7 @@ class Graphics extends JObject {
     }
   }
   ['fillTriangle(IIIIII)V'](x1, y1, x2, y2, x3, y3) {
+    if (this._rec) return this._record('fillTriangle(IIIIII)V', arguments);
     const t = this._tx;
     const u = this._ty;
     const [[ax, ay], [bx, by], [cx, cy]] = [[x1 + t, y1 + u], [x2 + t, y2 + u], [x3 + t, y3 + u]]
@@ -225,8 +277,10 @@ class Graphics extends JObject {
       this._hspan(xa, xb + 1, y);
     }
   }
-  ['fillArc(IIIIII)V'](x, y, w, h, s, a) { this._arc(x, y, w, h, s, a, true); }
-  ['drawArc(IIIIII)V'](x, y, w, h, s, a) { this._arc(x, y, w, h, s, a, false); }
+  ['fillArc(IIIIII)V'](x, y, w, h, s, a) {
+    if (this._rec) return this._record('fillArc(IIIIII)V', arguments); this._arc(x, y, w, h, s, a, true); }
+  ['drawArc(IIIIII)V'](x, y, w, h, s, a) {
+    if (this._rec) return this._record('drawArc(IIIIII)V', arguments); this._arc(x, y, w, h, s, a, false); }
   _arc(x, y, w, h, start, sweep, fill) {
     if (w <= 0 || h <= 0) return;
     x += this._tx;
@@ -260,11 +314,13 @@ class Graphics extends JObject {
 
   ['drawImage(Ljavax/microedition/lcdui/Image;III)V'](img, x, y, anchor) {
     $.nn(img);
+    if (this._rec) return this._record('drawImage(Ljavax/microedition/lcdui/Image;III)V', arguments);
     this._region(img, 0, 0, img._w, img._h, 0, x, y, anchor);
   }
   ['drawRegion(Ljavax/microedition/lcdui/Image;IIIIIIII)V'](img, sx, sy, sw, sh, tr, x, y, anchor) {
     $.nn(img);
     if (sx < 0 || sy < 0 || sx + sw > img._w || sy + sh > img._h) $.throwNew('java/lang/IllegalArgumentException', 'region');
+    if (this._rec) return this._record('drawRegion(Ljavax/microedition/lcdui/Image;IIIIIIII)V', arguments);
     this._region(img, sx, sy, sw, sh, tr, x, y, anchor);
   }
   _region(img, sx, sy, sw, sh, tr, x, y, anchor) {
@@ -315,6 +371,7 @@ class Graphics extends JObject {
     }
   }
   ['drawRGB([IIIIIIIZ)V'](rgb, offset, scan, x, y, w, h, alpha) {
+    if (this._rec) return this._record('drawRGB([IIIIIIIZ)V', arguments);
     x += this._tx;
     y += this._ty;
     const x0 = Math.max(this._cx0, x);
@@ -338,7 +395,8 @@ class Graphics extends JObject {
   }
   [`drawString(${S}III)V`](str, x, y, anchor) {
     if (str == null || str.length === 0) return;
-    const t = host.rasterText(str, this._font._css);
+    if (this._rec) return this._record(`drawString(${S}III)V`, arguments);
+    const t = textRaster(str, this._font._css);
     const w = t.width;
     const h = t.height;
     x += this._tx;
@@ -361,6 +419,22 @@ class Graphics extends JObject {
   }
 }
 define('javax/microedition/lcdui/Graphics', Graphics);
+const DRAW_REGION = 'drawRegion(Ljavax/microedition/lcdui/Image;IIIIIIII)V';
+const DRAW_IMAGE = 'drawImage(Ljavax/microedition/lcdui/Image;III)V';
+const DRAW_RGB = 'drawRGB([IIIIIIIZ)V';
+
+// Rasterising text in the browser is slow; smooth motion redraws each frame up to 3 times.
+const textCache = new Map();
+function textRaster(str, css) {
+  const k = `${css}|${str}`;
+  let t = textCache.get(k);
+  if (!t) {
+    if (textCache.size > 512) textCache.clear();
+    t = host.rasterText(str, css);
+    textCache.set(k, t);
+  }
+  return t;
+}
 
 function blend(d, c, a) {
   const ia = 255 - a;
@@ -500,8 +574,20 @@ class Canvas extends Displayable {
     if (current !== this) return;
     this._dispatch();
     screenGraphics._reset();
-    guard(() => this[P](screenGraphics), 'paint');
-    host.present(screen, W, H);
+    if (!motion.enabled) {
+      guard(() => this[P](screenGraphics), 'paint');
+      host.present(screen, W, H);
+      return;
+    }
+    screenGraphics._rec = [];
+    try {
+      guard(() => this[P](screenGraphics), 'paint');
+    } finally {
+      screenGraphics._group = null;
+    }
+    const cmds = screenGraphics._rec;
+    screenGraphics._rec = null;
+    motion.commit(cmds);
   }
   ['repaint(IIII)V']() { this['repaint()V'](); }
   ['serviceRepaints()V']() {}
@@ -544,6 +630,110 @@ class Canvas extends Displayable {
   ['sizeChanged(II)V']() {}
 }
 define('javax/microedition/lcdui/Canvas', Canvas);
+
+// ------------------------------------------------------------------ smooth motion
+
+// The game updates 20 times a second. With smooth motion on, each frame is recorded as
+// draw calls; on every display refresh the latest frame is redrawn with each sprite, tile
+// and the camera moved part-way from where they were in the frame before. Game speed and
+// logic are untouched; the picture trails the game by one frame (50 ms).
+export const motion = {
+  enabled: false,
+  prev: null,
+  curr: null,
+  plan: null,
+  tickAt: 0,
+  interval: 50,
+  tick: 0,
+  shown: -1,
+  looping: false,
+
+  commit(cmds) {
+    const now = performance.now();
+    const d = now - this.tickAt;
+    if (this.curr && d > 20 && d < 120) this.interval = this.interval * 0.8 + d * 0.2;
+    this.prev = this.curr;
+    this.curr = cmds;
+    this.plan = null;
+    this.tickAt = now;
+    this.tick++;
+    if (!this.looping) this.render(now);
+  },
+
+  render(now) {
+    const cmds = this.curr;
+    if (!cmds) return;
+    if (!this.plan) this.plan = planMotion(this.prev, cmds);
+    const p = this.plan;
+    if (!p.moving) {
+      if (this.shown === this.tick) return; // nothing moves between frames: draw once
+      for (const c of cmds) screenGraphics._replay(c, 0, 0);
+    } else {
+      const t = Math.min(1, (now - this.tickAt) / this.interval);
+      const k = 1 - t;
+      for (let i = 0; i < cmds.length; i++) {
+        if (i === p.leftoverAt) {
+          // Tiles that scrolled off in the newest frame, so the screen edge isn't left bare.
+          for (const j of p.leftovers) screenGraphics._replay(this.prev[j], Math.round(t * p.cdx), Math.round(t * p.cdy));
+        }
+        screenGraphics._replay(cmds[i], Math.round(-k * p.dx[i]), Math.round(-k * p.dy[i]));
+      }
+    }
+    this.shown = this.tick;
+    host.present(screen, W, H);
+  },
+};
+
+/** Turns smooth (interpolated) motion on or off. */
+export function setSmoothMotion(on) {
+  motion.enabled = on;
+  motion.prev = null;
+  motion.curr = null;
+}
+
+/**
+ * Drives the game from the display refresh: every game frame then lasts the same number
+ * of refreshes (3 at 60 Hz) instead of drifting with timer jitter.
+ */
+export function startFrameLoop() {
+  useExternalClock();
+  motion.looping = true;
+  let last = performance.now();
+  let vsync = 1000 / 60;
+  const loop = () => {
+    const now = performance.now();
+    const d = now - last;
+    last = now;
+    if (d > 4 && d < 40) vsync = vsync * 0.9 + d * 0.1;
+    runDue(now + vsync / 2);
+    if (motion.enabled) motion.render(performance.now());
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+/**
+ * Marks calls of a game's own sprite-drawing methods, so every draw call they make is
+ * known to belong to one on-screen object. `specs` = [[signature, args => [x, y]], ...]
+ * where the function returns the object's anchor from the call's arguments (after the
+ * Graphics argument).
+ */
+export function trackSprites(K, specs) {
+  for (const [sig, anchor] of specs) {
+    const orig = K.prototype[sig];
+    if (typeof orig !== 'function') continue;
+    K.prototype[sig] = function (g, ...rest) {
+      if (!g || !g._rec || g._group) return orig.call(this, g, ...rest);
+      const [ax, ay] = anchor(rest);
+      g._group = { s: this, x: ax + g._tx, y: ay + g._ty };
+      try {
+        return orig.call(this, g, ...rest);
+      } finally {
+        g._group = null;
+      }
+    };
+  }
+}
 
 // ------------------------------------------------------------------ media
 

@@ -122,6 +122,29 @@ From the settings bar (⚙ on phones), remembered per browser:
   default on phones).
 - **Filter** — *Sharp* or *Smooth* (Scale2x/AdvMAME, run on the GPU, never invents colours).
 - **Screen** — *Clean*, *LCD* (pixel grid) or *CRT* (scanlines + aperture mask).
+- **Motion** (in-browser player) — *Smooth 60 fps* (default) or *Original 20 fps*. The game
+  itself always updates 20 times a second; smooth mode redraws in-between positions on every
+  display refresh (see below). It shows the picture one game frame (50 ms) late, so pick
+  *Original* for the lowest input delay.
+
+### Smooth motion
+
+The game's logic runs on a fixed 50 ms tick, so it can't run faster without playing faster.
+Instead the player renders between ticks, like a modern engine with a fixed timestep:
+
+1. **Even pacing.** The game is driven from `requestAnimationFrame`, so every game frame
+   lasts exactly 3 refreshes at 60 Hz (6 at 120 Hz) instead of drifting with timer jitter.
+2. **Recording.** Each frame is recorded as a list of draw calls. Calls made inside the
+   game's sprite-drawing methods are tagged with the sprite and its on-screen anchor.
+3. **Matching** (`static/jvm/smooth.js`). Sprites are matched to the nearest same-sprite
+   object of the previous frame; tiles by identical image region, with the most common
+   offset taken as the camera scroll (parallax layers get their own offsets). Scene changes
+   are detected and shown as-is.
+4. **Redraw.** On each refresh the newest frame is replayed with every match moved
+   part-way from its old position. Tiles that just scrolled away fill the screen edge.
+
+Sprite animations keep their original drawings (a run cycle is still the same frames);
+movement, jumps and scrolling become smooth. A redraw costs well under 1 ms.
 
 ## How it works
 
@@ -135,6 +158,7 @@ From the settings bar (⚙ on phones), remembered per browser:
 | Linker | `runtime.js` | builds JS classes for the game's classes on top of the library ones; lazy static initialisers; thread scheduler (thread bodies that `sleep` become generators) |
 | Java library | `cldc.js` | `String`, `StringBuffer`, `Vector`, `Hashtable`, `Random` (exact LCG), streams, exceptions |
 | Phone APIs | `midp.js`, `png.js` | port of the Java MIDP layer below: renderer, fonts, input, audio, RecordStore |
+| Smooth motion | `smooth.js`, `midp.js` | records frames as draw calls and redraws in-between positions every refresh |
 | Page | `static/play.html` | file picker, optional IndexedDB copy, same controls and display settings |
 
 `tools/build-pages.mjs` copies these files (plus the shared front end) into `docs/play/`.

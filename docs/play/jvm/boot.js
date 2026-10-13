@@ -2,7 +2,9 @@
 // JavaScript, wire up the MIDP layer and call startApp().
 import { readJar, parseManifest, sha256Hex } from './jar.js';
 import { $, loadClasses } from './runtime.js';
-import { configure, launch } from './midp.js';
+import { configure, launch, setSmoothMotion, startFrameLoop, trackSprites } from './midp.js';
+
+export { setSmoothMotion };
 
 /** The one build the port is tested with (Soul of Darkness 1.0.1, 240x320 touch). */
 export const KNOWN_SHA256 = '3da9ea7fe8dfaa2c090e8b3714eaed15127f51dc8b67ed9ef9fed51172e4bea4';
@@ -31,8 +33,10 @@ export async function inspectJar(buf) {
 /**
  * @param jar   result of inspectJar()
  * @param host  SODHost (host.js), already initialised
+ * @param opts  { smooth: interpolate motion to the display rate, frameLoop: pace the game
+ *              from requestAnimationFrame (browser only) }
  */
-export function startGame(jar, host) {
+export function startGame(jar, host, opts = {}) {
   if (!jar.midlet) throw new Error('This JAR has no MIDlet-1 entry in its manifest.');
   const classFiles = [];
   for (const [name, bytes] of jar.files) {
@@ -52,6 +56,18 @@ export function startGame(jar, host) {
   const state = jar.known ? classes.e : null;
   const resolveOk = state ? () => (state.S_F === 31 ? -5 : -6) : () => -6;
 
+  // Sprite tracking for smooth motion. Class d is the game's sprite: a(Graphics, anim,
+  // frame, x, y, flags, camX, camY) draws an animation frame and a(Graphics, frame, x, y,
+  // flags, ox, oy) a single frame. Untested builds still get tile and camera motion.
+  if (jar.known && classes.d) {
+    trackSprites(classes.d, [
+      ['a(Ljavax/microedition/lcdui/Graphics;IIIIIII)V', (a) => [a[2] - a[5], a[3] - a[6]]],
+      ['a(Ljavax/microedition/lcdui/Graphics;IIIIII)V', (a) => [a[1], a[2]]],
+    ]);
+  }
+
   configure(host, { props, resolveOk });
+  setSmoothMotion(!!opts.smooth);
+  if (opts.frameLoop) startFrameLoop();
   return { midlet: launch(main), classes };
 }

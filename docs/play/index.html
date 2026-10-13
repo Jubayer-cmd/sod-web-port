@@ -210,6 +210,12 @@
         <button type="button" data-value="crt">CRT</button>
       </div>
     </div>
+    <div class="group">Motion
+      <div class="seg" data-setting="motion">
+        <button type="button" data-value="smooth" title="Redraws in-between positions at your screen's refresh rate (adds one game frame, 50 ms, of delay)">Smooth 60 fps</button>
+        <button type="button" data-value="original" title="The game's own 20 frames per second, lowest delay">Original 20 fps</button>
+      </div>
+    </div>
     <button type="button" class="tool" id="pads-toggle">Buttons</button>
     <button type="button" class="tool" id="fullscreen">Fullscreen</button>
   </header>
@@ -282,8 +288,9 @@
   }
 
   // ---- settings (per-browser convenience; safe if storage is blocked) ----
-  const defaults = { size: isTouch ? 'fill' : 'pixel', smooth: false, effect: 'none', pads: true };
+  const defaults = { size: isTouch ? 'fill' : 'pixel', smooth: false, effect: 'none', pads: true, motion: 'smooth' };
   let settings = { ...defaults };
+  let bootModule = null; // set once the game runs, so settings can reach it
   try { settings = { ...defaults, ...JSON.parse(localStorage.getItem('sod.settings') || '{}') }; } catch {}
   const save = () => { try { localStorage.setItem('sod.settings', JSON.stringify(settings)); } catch {} };
 
@@ -306,6 +313,7 @@
     document.getElementById('pads-toggle').setAttribute('aria-pressed', String(settings.pads));
     document.body.classList.toggle('no-pads', !settings.pads);
     display.setOptions({ smooth: settings.smooth, effect: settings.effect });
+    bootModule?.setSmoothMotion(settings.motion === 'smooth');
     fit();
   }
   for (const seg of document.querySelectorAll('.seg')) {
@@ -417,7 +425,8 @@
       if (!SODHost.ready) SODHost.init(canvas, audio, display);
       SODHost.ready = true;
       host = SODHost;
-      boot.startGame(jar, SODHost);
+      boot.startGame(jar, SODHost, { smooth: settings.motion === 'smooth', frameLoop: true });
+      bootModule = boot;
       start.remove();
       if (isTouch) goFullscreen();
     } catch (e) {

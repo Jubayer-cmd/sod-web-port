@@ -167,6 +167,7 @@ controls.js  drag joystick + buttons      midi.js  MIDI synth</pre>
       <div class="card"><h3>Pixel-exact graphics</h3><p>A software renderer handles MIDP clipping, all 8 sprite transforms and alpha, then the GPU scales the result.</p></div>
       <div class="card"><h3>Same input timing as a phone</h3><p>Input is delivered on the game thread before each frame, and every press lasts at least one frame, because the game checks the keys once per frame.</p></div>
       <div class="card"><h3>Context-aware OK</h3><p>Enter is the phone's OK soft key, except on the upgrade screen, which only fills its bar while Fire is held.</p></div>
+      <div class="card"><h3>Smooth 60 fps motion</h3><p>The game updates 20 times a second. The player records each frame as draw calls, tracks sprites, tiles and the camera between frames, and redraws in-between positions on every screen refresh. Game speed is unchanged; switch to <em>Original 20 fps</em> for the lowest input delay.</p></div>
       <div class="card"><h3>Pause and resume</h3><p>Hiding and showing the page arrive on a separate thread, so the game pauses when you switch tabs and picks up again when you come back.</p></div>
     </div>
   </section>

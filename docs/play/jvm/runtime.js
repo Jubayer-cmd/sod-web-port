@@ -229,12 +229,13 @@ $.Obj = Object.create(null);
 
 const threads = [];
 let pumpTimer = 0;
+// When a page drives the threads from its display refresh (runDue), timers are unused.
+let externalClock = false;
 
-function pump() {
-  pumpTimer = 0;
-  const now = performance.now();
+/** Runs every thread whose sleep ends before `until`. */
+export function runDue(until) {
   for (const t of threads.slice()) {
-    if (t.wake > now) continue;
+    if (t.wake > until) continue;
     try {
       const r = t.it.next();
       if (r.done) threads.splice(threads.indexOf(t), 1);
@@ -245,11 +246,23 @@ function pump() {
       console.error('[jvm] uncaught exception in thread:', j['toString()Ljava/lang/String;'](), j._js ?? j._stack ?? '');
     }
   }
+}
+
+/** Hands thread scheduling to the caller, who must call runDue() regularly. */
+export function useExternalClock() {
+  externalClock = true;
+  clearTimeout(pumpTimer);
+  pumpTimer = 0;
+}
+
+function pump() {
+  pumpTimer = 0;
+  runDue(performance.now());
   schedule();
 }
 
 function schedule() {
-  if (pumpTimer || !threads.length) return;
+  if (externalClock || pumpTimer || !threads.length) return;
   const next = Math.min(...threads.map((t) => t.wake));
   pumpTimer = setTimeout(pump, Math.max(0, next - performance.now()));
 }
